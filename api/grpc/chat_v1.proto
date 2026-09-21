@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package chat_v1;
+
+option go_package = "github.com/poponyas/GrpcChat/gen/grpc/chat_v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// ================= UserService =================
+
+message UserProfile {
+    string id = 1;
+    string name = 2;
+    string fullname = 3;
+    optional string phone = 4;
+    optional string avatar_url = 5;
+    google.protobuf.Timestamp photo_posted_at = 6;
+    google.protobuf.Timestamp created_at = 7;
+}
+
+service UserService {
+    rpc CreateProfile(CreateProfileInput) returns (UserProfile);
+    rpc GetProfile(GetProfileInput) returns (UserProfile);
+    rpc GetProfiles(GetProfilesInput) returns (GetProfilesOutput);
+    rpc UpdateProfile(UpdateProfileInput) returns (UserProfile);
+    rpc DeleteProfile(DeleteProfileInput) returns (google.protobuf.Empty);
+    
+    rpc GetAvatarUploadUrl(UploadUrlRequest) returns (UploadUrlResponse);
+}
+
+message CreateProfileInput {
+    string name = 1;
+    string fullname = 2;
+    optional string phone = 3;
+    optional string avatar_url = 4;
+}
+
+message GetProfileInput {
+    string id = 1;
+}
+
+message GetProfilesInput {
+    int32 limit = 1;
+    int32 offset = 2;
+}
+
+message GetProfilesOutput {
+    repeated UserProfile profiles = 1;
+}
+
+message UpdateProfileInput {
+    string id = 1;
+    optional string name = 2;
+    optional string fullname = 3;
+    optional string phone = 4;
+    optional string avatar_url = 5;
+}
+
+message DeleteProfileInput {
+    string id = 1;
+}
+
+message UploadUrlRequest {
+    string filename = 1;
+    string content_type = 2;
+}
+
+message UploadUrlResponse {
+    string upload_url = 1;
+    string avatar_url = 2;
+}
+
+// ================= ChatService =================
+
+service ChatService {
+    // Двунаправленный поток сообщений
+    rpc Connect(stream ChatMessage) returns (stream ChatMessage);
+
+    // История сообщений конкретного чата
+    rpc GetChatHistory(GetChatHistoryRequest) returns (GetChatHistoryResponse);
+
+    // Управление чатами
+    rpc CreateChat(CreateChatRequest) returns (CreateChatResponse);
+    rpc GetUserChats(GetUserChatsRequest) returns (GetUserChatsResponse);
+
+    // Управление участниками
+    rpc AddMember(AddMemberRequest) returns (google.protobuf.Empty);
+    rpc RemoveMember(RemoveMemberRequest) returns (google.protobuf.Empty);
+}
+
+message Chat {
+    string id = 1;
+    string name = 2;
+    bool is_private = 3;
+    google.protobuf.Timestamp created_at = 4;
+}
+
+message ChatMessage {
+    string id = 1;
+    string sender_id = 2;
+    string chat_id = 3;
+    string content = 4;
+    google.protobuf.Timestamp created_at = 5;
+}
+
+message GetChatHistoryRequest {
+    string chat_id = 1;
+    int32 limit = 2;
+    optional string before_message_id = 3;
+}
+
+message GetChatHistoryResponse {
+    repeated ChatMessage messages = 1;
+}
+
+message CreateChatRequest {
+    string name = 1;
+    bool is_private = 2;
+    repeated string member_ids = 3;
+}
+
+message CreateChatResponse {
+    Chat chat = 1;
+}
+
+message GetUserChatsRequest {
+    string user_id = 1;
+    int32 limit = 2;
+    int32 offset = 3;
+}
+
+message GetUserChatsResponse {
+    repeated Chat chats = 1;
+}
+
+message AddMemberRequest {
+    string chat_id = 1;
+    string user_id = 2;
+}
+
+message RemoveMemberRequest {
+    string chat_id = 1;
+    string user_id = 2;
+}

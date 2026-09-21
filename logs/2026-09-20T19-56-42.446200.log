@@ -1,0 +1,2 @@
+2026-09-20T19:56:42.446331	DEBUG	chat/main.go:39	application time zone	{"zone": "UTC"}
+2026-09-20T19:56:42.446510	DEBUG	chat/main.go:40	initializing postgres connection pool

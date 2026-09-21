@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS chat.messages;
+DROP TABLE IF EXISTS chat.chat_members;
+DROP TABLE IF EXISTS chat.chats;
+DROP TABLE IF EXISTS chat.users;
+DROP SCHEMA IF EXISTS chat CASCADE;

@@ -1,0 +1,6 @@
+2026-09-21T19:57:21.224587	DEBUG	chat/main.go:45	application time zone	{"zone": "UTC"}
+2026-09-21T19:57:21.224681	DEBUG	chat/main.go:46	initializing postgres connection pool
+2026-09-21T19:57:21.231986	DEBUG	chat/main.go:57	initializing feature	{"feature": "users"}
+2026-09-21T19:57:21.232366	INFO	grpc/grpc.go:51	gRPC server started	{"port": "50051"}
+2026-09-21T19:59:31.366041	INFO	chat/main.go:70	shutting down gRPC server...
+2026-09-21T19:59:31.367706	INFO	chat/main.go:73	gRPC server stopped successfully
