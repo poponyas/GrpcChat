@@ -4,3 +4,4 @@ out/
 logs/
 bin/
 *.session.json
+docs/
