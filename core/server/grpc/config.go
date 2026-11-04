@@ -7,7 +7,10 @@ import (
 )
 
 type Config struct {
-	Port string `envconfig:"GRPC_PORT" default:"50051"`
+	Host    string `envconfig:"GRPC_HOST" default:"127.0.0.1"`
+	TLSCert string `envconfig:"GRPC_TLS_CERT"`
+	TLSKey  string `envconfig:"GRPC_TLS_KEY"`
+	Port    string `envconfig:"GRPC_PORT" default:"50051"`
 }
 
 func NewConfig() (Config, error) {

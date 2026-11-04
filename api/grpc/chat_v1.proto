@@ -7,6 +7,27 @@ option go_package = "github.com/poponyas/GrpcChat/gen/grpc/chat_v1";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
+service AuthService {
+    rpc Register(RegisterRequest) returns (AuthResponse);
+    rpc Login(LoginRequest) returns (AuthResponse);
+    rpc Logout(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+message RegisterRequest {
+    string name = 1;
+    string fullname = 2;
+    string password = 3;
+}
+message LoginRequest {
+    string name = 1;
+    string password = 2;
+}
+message AuthResponse {
+    string token = 1;
+    UserProfile profile = 2;
+    google.protobuf.Timestamp expires_at = 3;
+}
+
 // ================= UserService =================
 
 message UserProfile {
@@ -76,6 +97,7 @@ message UploadUrlResponse {
 service ChatService {
     // Двунаправленный поток сообщений
     rpc Connect(stream ChatMessage) returns (stream ChatMessage);
+    rpc SendMessage(SendMessageRequest) returns (ChatMessage);
 
     // История сообщений конкретного чата
     rpc GetChatHistory(GetChatHistoryRequest) returns (GetChatHistoryResponse);
@@ -87,6 +109,19 @@ service ChatService {
     // Управление участниками
     rpc AddMember(AddMemberRequest) returns (google.protobuf.Empty);
     rpc RemoveMember(RemoveMemberRequest) returns (google.protobuf.Empty);
+    rpc GetMembers(GetMembersRequest) returns (GetMembersResponse);
+}
+
+message SendMessageRequest {
+    string chat_id = 1;
+    string content = 2;
+}
+message GetMembersRequest { string chat_id = 1; }
+message GetMembersResponse { repeated ChatMember members = 1; }
+message ChatMember {
+    string user_id = 1;
+    string name = 2;
+    string role = 3;
 }
 
 message Chat {
@@ -94,6 +129,7 @@ message Chat {
     string name = 2;
     bool is_private = 3;
     google.protobuf.Timestamp created_at = 4;
+    repeated ChatMember members = 5;
 }
 
 message ChatMessage {
@@ -102,6 +138,7 @@ message ChatMessage {
     string chat_id = 3;
     string content = 4;
     google.protobuf.Timestamp created_at = 5;
+    string sender_name = 6;
 }
 
 message GetChatHistoryRequest {

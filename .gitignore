@@ -1,5 +1,7 @@
 .env
 out/
-out
 .out/
-.out
+logs/
+bin/
+*.session.json
+docs/

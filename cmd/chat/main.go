@@ -9,6 +9,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/poponyas/GrpcChat/internal/auth"
+	chatgrpc "github.com/poponyas/GrpcChat/internal/server/adapters/inbound/grpc"
+	chathub "github.com/poponyas/GrpcChat/internal/server/adapters/outbound/hub"
+	chatrepo "github.com/poponyas/GrpcChat/internal/server/adapters/outbound/postgres"
+	chatservice "github.com/poponyas/GrpcChat/internal/server/service"
 	"go.uber.org/zap"
 
 	"github.com/joho/godotenv"
@@ -59,8 +64,13 @@ func main() {
 	usecase := usecase_client_grpc_v1.NewUseCasegRPC(repo)
 	handler := controllers_client_grpc_v1.NewTransportGRPC(usecase)
 
+	repository := chatrepo.New(pool.Pool)
+	hub := chathub.NewHub()
+	chats := chatgrpc.NewChatHandler(chatservice.NewChatService(repository, repository, hub), hub)
+	accounts := auth.New(pool.Pool)
+
 	// Инициализируем gRPC сервер через готовый компонент
-	grpcServer, err := core_server_v1_grpc.New(core_server_v1_grpc.NewConfigMust(), handler, logger)
+	grpcServer, err := core_server_v1_grpc.New(core_server_v1_grpc.NewConfigMust(), handler, chats, accounts, logger)
 	if err != nil {
 		logger.Fatal("failed to start gRPC server", zap.Error(err))
 	}
