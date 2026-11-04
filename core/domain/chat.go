@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -26,11 +27,12 @@ const (
 )
 
 type Chat struct {
-	ID        uuid.UUID
-	Type      ChatType
-	Title     *string
-	Members   map[uuid.UUID]MemberType
-	CreatedAt time.Time
+	ID          uuid.UUID
+	Type        ChatType
+	Title       *string
+	Members     map[uuid.UUID]MemberType
+	MemberNames map[uuid.UUID]string
+	CreatedAt   time.Time
 }
 
 func NewChat(chatType ChatType, title *string, members map[uuid.UUID]MemberType) (*Chat, error) {
@@ -69,6 +71,14 @@ func (c *Chat) Validate() error {
 	if c.Type == ChatTypeGroup && (c.Title == nil || strings.TrimSpace(*c.Title) == "") {
 		return errors.New("group chat title cannot be empty")
 	}
+	if c.Title != nil && utf8.RuneCountInString(*c.Title) > 255 {
+		return errors.New("chat title must be at most 255 characters")
+	}
+	for id, role := range c.Members {
+		if id == uuid.Nil || (role != ChatOwner && role != ChatAdmin && role != ChatParticipant) {
+			return errors.New("invalid chat member")
+		}
+	}
 
 	return nil
 }
@@ -84,11 +94,12 @@ func (c *Chat) GetRole(userID uuid.UUID) (MemberType, bool) {
 }
 
 type Message struct {
-	ID        uuid.UUID
-	ChatID    uuid.UUID
-	SenderID  uuid.UUID
-	Content   string
-	CreatedAt time.Time
+	ID         uuid.UUID
+	ChatID     uuid.UUID
+	SenderID   uuid.UUID
+	SenderName string
+	Content    string
+	CreatedAt  time.Time
 }
 
 func NewMessage(chatID, senderID uuid.UUID, content string) (*Message, error) {
@@ -122,7 +133,7 @@ func (m *Message) Validate() error {
 		return errors.New("message content cannot be empty")
 	}
 
-	if len(m.Content) > MaxMessageLength {
+	if !utf8.ValidString(m.Content) || utf8.RuneCountInString(m.Content) > MaxMessageLength {
 		return fmt.Errorf("message length exceeds max limit of %d characters", MaxMessageLength)
 	}
 

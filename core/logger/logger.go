@@ -64,7 +64,7 @@ func NewLogger(config Config) (*Logger, error) {
 
 func (l *Logger) Close() {
 	if err := l.file.Close(); err != nil {
-		fmt.Println("failed to close logfile: %w", err)
+		fmt.Printf("failed to close logfile: %v\n", err)
 	}
 }
 

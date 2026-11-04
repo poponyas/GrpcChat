@@ -15,6 +15,9 @@ type GetProfilesList []chat_v1.UserProfile
 
 func (t *TransportgRPC) GetProfiles(ctx context.Context, in *chat_v1.GetProfilesInput) (*chat_v1.GetProfilesOutput, error) {
 	limit, offset := in.GetLimit(), in.GetOffset()
+	if limit < 0 || offset < 0 {
+		return nil, status.Error(codes.InvalidArgument, "limit and offset cannot be negative")
+	}
 
 	response, err := t.usecase.GetProfiles(ctx, limit, offset)
 	if err != nil {

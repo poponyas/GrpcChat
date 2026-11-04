@@ -2,61 +2,56 @@ package server_service_hub
 
 import (
 	"context"
-	"sync"
-
 	"github.com/google/uuid"
 	"github.com/poponyas/GrpcChat/core/domain"
+	"sync"
 )
 
+type subscription struct {
+	messages chan *domain.Message
+	overflow chan struct{}
+	failed   bool
+}
 type Hub struct {
-	mu      sync.RWMutex
-	clients map[uuid.UUID]chan<- *domain.Message
+	mu      sync.Mutex
+	clients map[uuid.UUID]map[*subscription]struct{}
 }
 
-func NewHub() *Hub {
-	return &Hub{
-		clients: make(map[uuid.UUID]chan<- *domain.Message),
+func NewHub() *Hub { return &Hub{clients: make(map[uuid.UUID]map[*subscription]struct{})} }
+
+// Each connection has its own subscription, including multiple terminals of one user.
+func (h *Hub) Subscribe(user uuid.UUID) (<-chan *domain.Message, <-chan struct{}, func()) {
+	s := &subscription{messages: make(chan *domain.Message, 100), overflow: make(chan struct{})}
+	h.mu.Lock()
+	if h.clients[user] == nil {
+		h.clients[user] = make(map[*subscription]struct{})
+	}
+	h.clients[user][s] = struct{}{}
+	h.mu.Unlock()
+	return s.messages, s.overflow, func() {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		delete(h.clients[user], s)
+		if len(h.clients[user]) == 0 {
+			delete(h.clients, user)
+		}
 	}
 }
-
-// RegisterClient регистрирует канал сообщений для подключившегося пользователя.
-func (h *Hub) RegisterClient(userID uuid.UUID, clientChan chan<- *domain.Message) {
+func (h *Hub) SendToUsers(ctx context.Context, msg *domain.Message, users []uuid.UUID) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-
-	h.clients[userID] = clientChan
-}
-
-// UnregisterClient удаляет подключение пользователя при разрыве gRPC-стрима.
-func (h *Hub) UnregisterClient(userID uuid.UUID) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	delete(h.clients, userID)
-}
-
-// SendToUsers рассылает сообщение конкретным пользователям (участникам чата), если они онлайн.
-func (h *Hub) SendToUsers(ctx context.Context, msg *domain.Message, recipientIDs []uuid.UUID) error {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
-	for _, userID := range recipientIDs {
-		// Не отправляем сообщение самому автору
-		if userID == msg.SenderID {
-			continue
-		}
-
-		if clientChan, ok := h.clients[userID]; ok {
-			// Неблокирующая отправка:
-			// Если клиент медленно читает и буфер канала переполнен,
-			// мы не заблокируем сервер и остальных пользователей в цикле.
+	for _, user := range users {
+		for s := range h.clients[user] {
+			if s.failed {
+				continue
+			}
 			select {
-			case clientChan <- msg:
+			case s.messages <- msg:
 			default:
-				// Опционально: здесь можно залогировать drop сообщения или переполнение буфера
+				s.failed = true
+				close(s.overflow)
 			}
 		}
 	}
-
 	return nil
 }

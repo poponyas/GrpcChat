@@ -3,6 +3,8 @@ package core_pgx_pool
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,14 +20,8 @@ func NewPool(
 	ctx context.Context,
 	config Config,
 ) (*Pool, error) {
-	connectionString := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		config.User,
-		config.Password,
-		config.Host,
-		config.Port,
-		config.Database,
-	)
+	connectionURL := &url.URL{Scheme: "postgres", User: url.UserPassword(config.User, config.Password), Host: net.JoinHostPort(config.Host, config.Port), Path: config.Database, RawQuery: "sslmode=disable"}
+	connectionString := connectionURL.String()
 
 	pgxConfig, err := pgxpool.ParseConfig(connectionString)
 	if err != nil {
@@ -38,7 +34,10 @@ func NewPool(
 
 	}
 
-	if err := pool.Ping(ctx); err != nil {
+	pingCtx, cancel := context.WithTimeout(ctx, config.Timeout)
+	defer cancel()
+	if err := pool.Ping(pingCtx); err != nil {
+		pool.Close()
 		return nil, fmt.Errorf("pgxpool ping: %w", err)
 	}
 

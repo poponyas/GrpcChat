@@ -1,0 +1,30 @@
+name: Go checks
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.4-bookworm
+        env:
+          POSTGRES_USER: chat
+          POSTGRES_PASSWORD: test-password
+          POSTGRES_DB: grpcchat_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chat -d grpcchat_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://chat:test-password@localhost:5432/grpcchat_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make check
+      - run: make test
+      - run: make build

@@ -8,9 +8,14 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
     volumes:
       - ${PROJECT_ROOT:-.}/out/pgdata:/var/lib/postgresql
-    restart: always
+#    restart: always
     
 
   grpcchat-postgres-migrate:
@@ -20,6 +25,9 @@ services:
       - ${PROJECT_ROOT:-.}/migrations:/migrations
 
   port-forwarder:
+    depends_on:
+      chat-postgres:
+        condition: service_healthy
     image: alpine/socat:1.8.1.3
     container_name: grpcchat-postgres-port-forwarder
     command: tcp-listen:5432,fork,reuseaddr tcp-connect:chat-postgres:5432

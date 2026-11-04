@@ -13,6 +13,8 @@ import (
 var (
 	ErrAccessDenied = errors.New("user is not a member of this chat")
 	ErrChatNotFound = errors.New("chat not found")
+	ErrUserNotFound = errors.New("user not found")
+	ErrInvalidInput = errors.New("invalid input")
 )
 
 type ChatService struct {
@@ -42,7 +44,7 @@ func (s *ChatService) CreateChat(
 ) (*domain.Chat, error) {
 	chat, err := domain.NewChat(chatType, title, members)
 	if err != nil {
-		return nil, fmt.Errorf("invalid chat domain model: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
 	}
 
 	if err := s.chatRepo.SaveChat(ctx, chat); err != nil {
@@ -76,7 +78,7 @@ func (s *ChatService) SendMessage(
 	// 3. Создаем и валидируем доменную модель сообщения
 	msg, err := domain.NewMessage(chatID, senderID, content)
 	if err != nil {
-		return nil, fmt.Errorf("invalid message: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
 	}
 
 	// 4. Персистим сообщение в базу данных
@@ -116,5 +118,43 @@ func (s *ChatService) GetHistory(
 		return nil, ErrAccessDenied
 	}
 
-	return s.messageRepo.GetHistory(ctx, chatID, limit, beforeID)
+	if limit < 0 {
+		return nil, ErrInvalidInput
+	}
+	if limit == 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	return s.messageRepo.GetHistory(ctx, chatID, userID, limit, beforeID)
+}
+
+func (s *ChatService) GetChat(ctx context.Context, user, chatID uuid.UUID) (*domain.Chat, error) {
+	chat, err := s.chatRepo.GetChatByID(ctx, chatID)
+	if err != nil {
+		return nil, err
+	}
+	if chat == nil {
+		return nil, ErrChatNotFound
+	}
+	if !chat.IsMember(user) {
+		return nil, ErrAccessDenied
+	}
+	return chat, nil
+}
+func (s *ChatService) ListChats(ctx context.Context, user uuid.UUID, limit, offset int) ([]*domain.Chat, error) {
+	if limit < 0 || offset < 0 {
+		return nil, ErrInvalidInput
+	}
+	if limit == 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	return s.chatRepo.ListChats(ctx, user, limit, offset)
+}
+func (s *ChatService) ChangeMember(ctx context.Context, actor, chat, user uuid.UUID, remove bool) error {
+	return s.chatRepo.ChangeMember(ctx, actor, chat, user, remove)
 }
